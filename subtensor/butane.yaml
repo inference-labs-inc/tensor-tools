@@ -1,0 +1,153 @@
+variant: fcos
+version: 1.5.0
+
+passwd:
+  users:
+    # https://docs.fedoraproject.org/en-US/fedora-coreos/authentication/
+    - name: core
+      ssh_authorized_keys_local:
+        - ssh-keys.pub
+
+storage:
+  files:
+    # https://docs.bittensor.com/subtensor-nodes/using-docker
+    - path: /usr/local/bin/subtensor-docker.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/usr/bin/env bash
+          if [ -d /opt/subtensor ]; then
+            cd /opt/subtensor;
+            git pull;
+          else
+            git clone https://github.com/opentensor/subtensor.git /opt/subtensor;
+            cd /opt/subtensor;
+          fi;
+          docker compose down --volumes;
+          docker system prune -a --volumes -f;
+          ./scripts/run/subtensor.sh -e docker --network mainnet --node-type archive;
+
+    # https://docs.bittensor.com/subtensor-nodes/using-source
+    - path: /usr/local/bin/subtensor-build-and-run.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/usr/bin/env bash
+          if [ -d /opt/subtensor ]; then
+            cd /opt/subtensor;
+            git pull;
+          else
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y;
+            /root/.cargo/bin/rustup default stable;
+            /root/.cargo/bin/rustup update;
+            /root/.cargo/bin/rustup target add wasm32-unknown-unknown;
+            /root/.cargo/bin/rustup toolchain install nightly;
+            /root/.cargo/bin/rustup target add --toolchain nightly wasm32-unknown-unknown;
+            git clone https://github.com/opentensor/subtensor.git /opt/subtensor;
+            cd /opt/subtensor;
+          fi;
+          /root/.cargo/bin/cargo build -p node-subtensor --profile=production --features=runtime-benchmarks;
+          ./target/production/node-subtensor --chain raw_spec_finney.json --base-path /tmp/blockchain --sync=full --pruning archive --port 30333 --max-runtime-instances 32 --rpc-max-response-size 2048 --rpc-cors all --rpc-port 9944 --bootnodes /dns/bootnode.finney.chain.opentensor.ai/tcp/30333/ws/p2p/12D3KooWRwbMb85RWnT8DSXSYMWQtuDwh4LJzndoRrTDotTR5gDC --no-mdns --in-peers 8000 --out-peers 8000 --prometheus-external --rpc-external;
+
+systemd:
+  units:
+    # https://docs.fedoraproject.org/en-US/fedora-coreos/docker-ce/
+    - name: install-docker-ce.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install Docker CE
+        Wants=network-online.target
+        After=network-online.target
+        Before=zincati.service
+        ConditionPathExists=!/var/lib/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/curl --output-dir "/etc/yum.repos.d" --remote-name https://download.docker.com/linux/fedora/docker-ce.repo
+        ExecStart=/usr/bin/rpm-ostree override remove moby-engine containerd runc --install docker-ce --install docker-compose-plugin
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # https://docs.fedoraproject.org/en-US/fedora-coreos/os-extensions/
+    - name: install-packages.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install packages on first boot
+        After=install-docker-ce.service
+        Wants=network-online.target
+        Before=zincati.service
+        ConditionPathExists=!/var/lib/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive git fish
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # run subtensor node with docker
+    - name: subtensor-docker.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Update subtensor repository and run subtensor node with docker
+        After=install-packages.service
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/local/bin/subtensor-docker.sh
+        Restart=on-failure
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # https://docs.fedoraproject.org/en-US/fedora-coreos/os-extensions/
+    - name: install-build-deps.service
+      enabled: false
+      contents: |
+        [Unit]
+        Description=Install packages on first boot
+        After=install-packages.service
+        Wants=network-online.target
+        Before=zincati.service
+        ConditionPathExists=!/var/lib/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive make automake gcc gcc-c++ kernel-devel clang curl openssl-devel llvm protobuf-compiler libudev-devel
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # run subtensor node from source
+    - name: subtensor-build-and-run.service
+      enabled: false
+      contents: |
+        [Unit]
+        Description=Update subtensor repository and run subtensor node from source
+        After=install-build-deps.service
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/local/bin/subtensor-build-and-run.sh
+        Restart=on-failure
+
+        [Install]
+        WantedBy=multi-user.target
+
