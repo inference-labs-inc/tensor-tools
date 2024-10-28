@@ -37,12 +37,6 @@ storage:
             cd /opt/subtensor;
             git pull;
           else
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y;
-            /root/.cargo/bin/rustup default stable;
-            /root/.cargo/bin/rustup update;
-            /root/.cargo/bin/rustup target add wasm32-unknown-unknown;
-            /root/.cargo/bin/rustup toolchain install nightly;
-            /root/.cargo/bin/rustup target add --toolchain nightly wasm32-unknown-unknown;
             git clone https://github.com/opentensor/subtensor.git /opt/subtensor;
             cd /opt/subtensor;
           fi;
@@ -104,7 +98,7 @@ systemd:
         Wants=network-online.target
 
         [Service]
-        Type=oneshot
+        Type=simple
         RemainAfterExit=yes
         ExecStart=/usr/local/bin/subtensor-docker.sh
         Restart=on-failure
@@ -127,6 +121,12 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive make automake gcc gcc-c++ kernel-devel clang curl openssl-devel llvm protobuf-compiler libudev-devel
+        ExecStart=/usr/bin/curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y;
+        ExecStart=/root/.cargo/bin/rustup default stable;
+        ExecStart=/root/.cargo/bin/rustup update;
+        ExecStart=/root/.cargo/bin/rustup target add wasm32-unknown-unknown;
+        ExecStart=/root/.cargo/bin/rustup toolchain install nightly;
+        ExecStart=/root/.cargo/bin/rustup target add --toolchain nightly wasm32-unknown-unknown;
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
 
@@ -143,7 +143,7 @@ systemd:
         Wants=network-online.target
 
         [Service]
-        Type=oneshot
+        Type=simple
         RemainAfterExit=yes
         ExecStart=/usr/local/bin/subtensor-build-and-run.sh
         Restart=on-failure
