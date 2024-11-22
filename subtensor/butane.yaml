@@ -43,6 +43,49 @@ storage:
           /root/.cargo/bin/cargo build -p node-subtensor --profile=production --features=runtime-benchmarks;
           ./target/production/node-subtensor --chain raw_spec_finney.json --base-path /tmp/blockchain --sync=full --pruning archive --port 30333 --max-runtime-instances 32 --rpc-max-response-size 2048 --rpc-cors all --rpc-port 9944 --bootnodes /dns/bootnode.finney.chain.opentensor.ai/tcp/30333/ws/p2p/12D3KooWRwbMb85RWnT8DSXSYMWQtuDwh4LJzndoRrTDotTR5gDC --no-mdns --in-peers 8000 --out-peers 8000 --prometheus-external --rpc-external;
 
+    # https://wiki.polkadot.network/docs/maintain-wss
+    - path: /usr/local/bin/lets-encrypt.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/usr/bin/env bash
+          if [ -d /opt/certbot ]; then
+            /opt/certbot/bin/pip install --upgrade certbot certbot-nginx;
+            /opt/certbot/bin/certbot renew -q;
+          else
+            /usr/bin/python3 -m venv /opt/certbot/
+            /opt/certbot/bin/pip install --upgrade pip
+            /opt/certbot/bin/pip install certbot certbot-nginx
+            /opt/certbot/bin/certbot certonly \
+              --nginx \
+              --non-interactive \
+              --agree-tos \
+              --no-eff-email \
+              --no-redirect \
+              --register-unsafely-without-email \
+              --domains subtensor.inferencelabs.com;
+          fi;
+
+    # nginx config for subtensor node
+    - path: /etc/nginx/conf.d/subtensor.conf
+      mode: 0644
+      contents:
+        inline: |
+          server {
+            listen 443;
+            server_name subtensor.inferencelabs.com;
+            location / {
+              proxy_buffers 16 4k;
+              proxy_buffer_size 2k;
+              proxy_pass http://localhost:9944;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "Upgrade";
+              proxy_set_header Host $host;
+              limit_req zone=zone burst=5;
+            }
+          }
+
 systemd:
   units:
     # https://docs.fedoraproject.org/en-US/fedora-coreos/docker-ce/
@@ -81,7 +124,7 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive git fish
+        ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive git fish python3 augeas-libs nginx
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
 
@@ -106,7 +149,7 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
-    # https://docs.fedoraproject.org/en-US/fedora-coreos/os-extensions/
+    # install build dependencies to run subtensor from source
     - name: install-build-deps.service
       enabled: false
       contents: |
@@ -121,12 +164,32 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/rpm-ostree install -y --allow-inactive make automake gcc gcc-c++ kernel-devel clang curl openssl-devel llvm protobuf-compiler libudev-devel
-        ExecStart=/usr/bin/curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y;
-        ExecStart=/root/.cargo/bin/rustup default stable;
-        ExecStart=/root/.cargo/bin/rustup update;
-        ExecStart=/root/.cargo/bin/rustup target add wasm32-unknown-unknown;
-        ExecStart=/root/.cargo/bin/rustup toolchain install nightly;
-        ExecStart=/root/.cargo/bin/rustup target add --toolchain nightly wasm32-unknown-unknown;
+        ExecStart=/usr/bin/bash -c "/usr/bin/curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | /usr/bin/bash -s -- -y"
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # subtensor docs ask to update rust and install wasm target (this service file currently fails)
+    - name: update-rust.service
+      enabled: false
+      contents: |
+        [Unit]
+        Description=Update rust after first install
+        After=install-build-deps.service
+        Wants=network-online.target
+        Before=zincati.service
+        ConditionPathExists=!/var/lib/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/root/.cargo/bin/rustup default stable
+        ExecStart=/root/.cargo/bin/rustup update
+        ExecStart=/root/.cargo/bin/rustup target add wasm32-unknown-unknown
+        ExecStart=/root/.cargo/bin/rustup toolchain install nightly
+        ExecStart=/root/.cargo/bin/rustup target add --toolchain nightly wasm32-unknown-unknown
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
 
@@ -139,7 +202,7 @@ systemd:
       contents: |
         [Unit]
         Description=Update subtensor repository and run subtensor node from source
-        After=install-build-deps.service
+        After=update-rust.service
         Wants=network-online.target
 
         [Service]
@@ -151,3 +214,32 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
+    # lets encrypt
+    - name: lets-encrypt.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Setup and renew lets encrypt certificate
+        After=install-packages.service
+        Wants=network-online.target
+        Before=zincati.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/lets-encrypt.sh
+
+        [Install]
+        WantedBy=multi-user.target
+
+    # https://wiki.archlinux.org/title/Systemd/Timers (fcos uses this instead of cron)
+    - name: lets-encrypt.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Run lets encrypt certificate renewal every 30 minutes
+
+        [Timer]
+        OnUnitActiveSec=30min
+
+        [Install]
+        WantedBy=timers.target
