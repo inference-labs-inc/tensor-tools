@@ -30,7 +30,6 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install subtensor
 RUN git clone https://github.com/opentensor/subtensor.git && \
     cd subtensor && \
-    git checkout v1.1.6 && \
     cargo build --workspace --profile=release --features pow-faucet --manifest-path "Cargo.toml"
 
 # Install Jolt
@@ -46,10 +45,15 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | b
     nvm install 20 && \
     npm install --prefix /root/.snarkjs snarkjs@0.7.4
 
-# Install btcli and uv
-RUN pipx install bittensor-cli==8.3.1 && \
-    pipx install uv
+# Install uv then use uv to install torch and bittensor-cli to /opt/.venv
+RUN pipx install uv && \
+    cd /opt && \
+    /root/.local/bin/uv venv && \
+    /root/.local/bin/uv pip install torch --index-url https://download.pytorch.org/whl/cpu && \
+    /root/.local/bin/uv pip install bittensor-cli && \
+    /root/.local/bin/uv cache clean
 ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/opt/.venv/bin:${PATH}"
 
 # Set flags for local subtensor
 ENV WPATH="--wallet.path /root/.bittensor/wallets/"
