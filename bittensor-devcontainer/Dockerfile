@@ -59,7 +59,7 @@ ENV PATH="/opt/.venv/bin:${PATH}"
 
 # Set flags for local subtensor
 ENV WPATH="--wallet.path /root/.bittensor/wallets/"
-ENV LOCALNET="--subtensor.chain_endpoint ws://127.0.0.1:9946"
+ENV LOCALNET="--subtensor.chain_endpoint ws://127.0.0.1:9944"
 
 # Create wallets
 RUN btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name owner && \
