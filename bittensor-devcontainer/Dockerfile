@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/base:noble
+FROM mcr.microsoft.com/devcontainers/base:noble
 
 # Install dependencies and some nice to have tools
 RUN apt update && \
@@ -30,12 +30,12 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install subtensor
 RUN git clone https://github.com/opentensor/subtensor.git && \
     cd subtensor && \
-    cargo build --workspace --profile=release --features pow-faucet --manifest-path "Cargo.toml"
+    cargo build --workspace --package node-subtensor --profile production --features metadata-hash --features pow-faucet --manifest-path "Cargo.toml" --locked
 
-# Install Jolt
-ENV RUST_TOOLCHAIN=nightly-2024-09-30
-RUN rustup toolchain install ${RUST_TOOLCHAIN} && \
-    cargo +${RUST_TOOLCHAIN} install --git https://github.com/a16z/jolt --force --bins jolt
+# # Install Jolt
+# ENV RUST_TOOLCHAIN=nightly-2024-09-30
+# RUN rustup toolchain install ${RUST_TOOLCHAIN} && \
+#     cargo +${RUST_TOOLCHAIN} install --git https://github.com/a16z/jolt --force --bins jolt
 
 # Install node et al.
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash && \
@@ -43,7 +43,9 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | b
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" && \
     nvm install 20 && \
-    npm install --prefix /root/.snarkjs snarkjs@0.7.4
+    npm install --prefix /root/.snarkjs snarkjs@0.7.4 && \
+    ln -s $(which node) /usr/bin/node && \
+    ln -s $(which npm) /usr/bin/npm
 
 # Install uv then use uv to install torch and bittensor-cli to /opt/.venv
 RUN pipx install uv && \
