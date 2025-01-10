@@ -35,9 +35,8 @@ RUN git clone https://github.com/opentensor/subtensor.git && \
 
 # Install Jolt
 ENV RUST_TOOLCHAIN=nightly-2024-09-30
-ENV JOLT_VERSION=dd9e5c4bcf36ffeb75a576351807f8d86c33ec66
 RUN rustup toolchain install ${RUST_TOOLCHAIN} && \
-    cargo +${RUST_TOOLCHAIN} install --git https://github.com/a16z/jolt --rev ${JOLT_VERSION} --force --bins jolt
+    cargo +${RUST_TOOLCHAIN} install --git https://github.com/a16z/jolt --force --bins jolt
 
 # Install node et al.
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash && \
