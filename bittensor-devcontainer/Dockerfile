@@ -30,7 +30,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install subtensor
 RUN git clone https://github.com/opentensor/subtensor.git && \
     cd subtensor && \
-    cargo build --workspace --package node-subtensor --profile production --features metadata-hash --features pow-faucet --manifest-path "Cargo.toml" --locked
+    cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
 
 # # Install Jolt
 # ENV RUST_TOOLCHAIN=nightly-2024-09-30
