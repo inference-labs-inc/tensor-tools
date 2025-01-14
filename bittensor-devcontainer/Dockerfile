@@ -105,7 +105,7 @@ RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh > /dev/null 2>&1 & \
     sleep 5 && \
     yes | btcli wallet faucet --wallet.name owner $WPATH $LOCALNET & \
-    sleep 60 && \
+    sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
     sleep 1
@@ -114,7 +114,7 @@ RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 5 && \
     yes | btcli wallet faucet --wallet.name miner $WPATH $LOCALNET & \
-    sleep 60 && \
+    sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
     sleep 1
@@ -123,7 +123,7 @@ RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 5 && \
     yes | btcli wallet faucet --wallet.name validator $WPATH $LOCALNET & \
-    sleep 60 && \
+    sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
     sleep 1
