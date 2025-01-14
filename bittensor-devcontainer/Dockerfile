@@ -1,3 +1,32 @@
+# Based off of subtensor builder from https://github.com/opentensor/subtensor/blob/main/Dockerfile
+FROM ubuntu:24.04 AS builder
+SHELL ["/bin/bash", "-c"]
+
+# Set noninteractive mode for apt-get
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Set up Rust environment
+ENV RUST_BACKTRACE=1
+RUN apt-get update && \
+  apt-get install -y curl build-essential protobuf-compiler clang git pkg-config libssl-dev && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN set -o pipefail && curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup update stable
+RUN rustup target add wasm32-unknown-unknown --toolchain stable
+
+# Copy entire repository
+RUN git clone https://github.com/opentensor/subtensor.git /build
+WORKDIR /build
+
+# Build the project
+RUN cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
+
+# Verify the binary was produced
+RUN test -e /build/target/release/node-subtensor
+
+# Final devcontainer
 FROM mcr.microsoft.com/devcontainers/base:noble
 
 # Install dependencies and some nice to have tools
@@ -28,9 +57,11 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install subtensor
-RUN git clone https://github.com/opentensor/subtensor.git && \
-    cd subtensor && \
-    cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
+RUN git clone https://github.com/opentensor/subtensor.git
+    # cd subtensor && \
+    # cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
+# Copy subtensor binary
+COPY --from=builder /build/target/release/node-subtensor /subtensor/target/release/node-subtensor
 
 # # Install Jolt
 # ENV RUST_TOOLCHAIN=nightly-2024-09-30
