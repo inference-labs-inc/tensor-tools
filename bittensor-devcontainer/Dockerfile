@@ -52,16 +52,20 @@ RUN apt update && \
     wget \
     && apt clean && rm -rf /var/lib/apt/lists/*
 
+# Microsoft devcontainers have a default user vscode (1000:1000) already created
+USER vscode
+WORKDIR /home/vscode
+
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+ENV PATH="/home/vscode/.cargo/bin:${PATH}"
 
 # Install subtensor
 RUN git clone https://github.com/opentensor/subtensor.git
     # cd subtensor && \
     # cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
 # Copy subtensor binary
-COPY --from=builder /build/target/release/node-subtensor /subtensor/target/release/node-subtensor
+COPY --from=builder /build/target/release/node-subtensor /home/vscode/subtensor/target/release/node-subtensor
 
 # # Install Jolt
 # ENV RUST_TOOLCHAIN=nightly-2024-09-30
@@ -70,41 +74,37 @@ COPY --from=builder /build/target/release/node-subtensor /subtensor/target/relea
 
 # Install node et al.
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash && \
-    export NVM_DIR="/root/.nvm" && \
+    export NVM_DIR="/home/vscode/.nvm" && \
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" && \
     nvm install 20 && \
-    npm install --prefix /root/.snarkjs snarkjs@0.7.4 && \
+    npm install --prefix /home/vscode/.snarkjs snarkjs@0.7.4 && \
     ln -s $(which node) /usr/bin/node && \
     ln -s $(which npm) /usr/bin/npm
 
-# Install uv then use uv to install torch and bittensor-cli to /opt/.venv
+# Install uv then use uv to install torch and bittensor-cli to ~/.venv
 RUN pipx install uv && \
-    cd /opt && \
-    /root/.local/bin/uv venv && \
-    /root/.local/bin/uv pip install torch --index-url https://download.pytorch.org/whl/cpu && \
-    /root/.local/bin/uv pip install bittensor-cli && \
-    /root/.local/bin/uv cache clean
-ENV PATH="/root/.local/bin:${PATH}"
-ENV PATH="/opt/.venv/bin:${PATH}"
+    /home/vscode/.local/bin/uv venv && \
+    /home/vscode/.local/bin/uv pip install torch --index-url https://download.pytorch.org/whl/cpu && \
+    /home/vscode/.local/bin/uv pip install bittensor-cli && \
+    /home/vscode/.local/bin/uv cache clean
+ENV PATH="/home/vscode/.local/bin:${PATH}"
+ENV PATH="/home/vscode/.venv/bin:${PATH}"
 
-# Set flags for local subtensor
-ENV WPATH="--wallet.path /root/.bittensor/wallets/"
-ENV LOCALNET="--subtensor.chain_endpoint ws://127.0.0.1:9944"
-
-# Create wallets
-RUN btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name owner && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name owner --wallet.hotkey default && \
-    btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name miner && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name miner --wallet.hotkey default && \
-    btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name validator && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name validator --wallet.hotkey default
+# Set btcli config.yml and create wallets
+RUN btcli config set --subtensor.chain_endpoint ws://127.0.0.1:9944 && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name owner && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name owner --wallet.hotkey default && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name miner && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name miner --wallet.hotkey default && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name validator && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name validator --wallet.hotkey default
 
 # Mint some tokens
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh > /dev/null 2>&1 & \
     sleep 5 && \
-    yes | btcli wallet faucet --wallet.name owner $WPATH $LOCALNET & \
+    yes | btcli wallet faucet --wallet.name owner & \
     sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
@@ -113,7 +113,7 @@ RUN cd subtensor && \
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 5 && \
-    yes | btcli wallet faucet --wallet.name miner $WPATH $LOCALNET & \
+    yes | btcli wallet faucet --wallet.name miner & \
     sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
@@ -122,7 +122,7 @@ RUN cd subtensor && \
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 5 && \
-    yes | btcli wallet faucet --wallet.name validator $WPATH $LOCALNET & \
+    yes | btcli wallet faucet --wallet.name validator & \
     sleep 180 && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
@@ -132,27 +132,23 @@ RUN cd subtensor && \
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 5 && \
-    btcli subnet create   --wallet.name owner     --no-prompt                                      $WPATH $LOCALNET && \
-    btcli subnet register --wallet.name miner     --no-prompt --netuid 1   --wallet.hotkey default $WPATH $LOCALNET && \
-    btcli subnet register --wallet.name validator --no-prompt --netuid 1   --wallet.hotkey default $WPATH $LOCALNET && \
-    btcli root nominate   --wallet.name validator --no-prompt              --wallet.hotkey default $WPATH $LOCALNET && \
-    btcli stake add       --wallet.name validator --no-prompt --amount 100 --wallet.hotkey default $WPATH $LOCALNET && \
+    btcli subnet create   --wallet.name owner     --no-prompt                                      && \
+    btcli subnet register --wallet.name miner     --no-prompt --netuid 1   --wallet.hotkey default && \
+    btcli subnet register --wallet.name validator --no-prompt --netuid 1   --wallet.hotkey default && \
+    btcli root nominate   --wallet.name validator --no-prompt              --wallet.hotkey default && \
+    btcli stake add       --wallet.name validator --no-prompt --amount 100 --wallet.hotkey default && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
     sleep 1
 
 # Add scripts to start and stop the localnet, and aliases for common btcli commands
-RUN echo "#!/usr/bin/env bash" > /start_localnet.sh && \
-    echo "cd /subtensor" >> /start_localnet.sh && \
-    echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> /start_localnet.sh && \
-    chmod +x /start_localnet.sh && \
-    echo "#!/usr/bin/env bash" > /stop_localnet.sh && \
-    echo "pkill -2 localnet" >> /stop_localnet.sh && \
-    echo "pkill -2 subtensor" >> /stop_localnet.sh && \
-    chmod +x /stop_localnet.sh && \
-    echo 'alias btcliwo="btcli wallet overview '"$WPATH"' '"$LOCALNET"'"' >> ~/.bashrc && \
-    fish -c 'alias --save btcliwo="btcli wallet overview '"$WPATH"' '"$LOCALNET"'"' && \
-    echo 'alias btclisl="btcli subnet list '"$LOCALNET"'"' >> ~/.bashrc && \
-    fish -c 'alias --save btclisl="btcli subnet list '"$LOCALNET"'"' && \
-    echo "source /opt/venv/bin/activate" >> ~/.bashrc && \
-    echo "source /opt/venv/bin/activate.fish" >> ~/.config/fish/config.fish
+RUN echo "#!/usr/bin/env bash" > ~/start_localnet.sh && \
+    echo "cd ~/subtensor" >> ~/start_localnet.sh && \
+    echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> ~/start_localnet.sh && \
+    chmod +x ~/start_localnet.sh && \
+    echo "#!/usr/bin/env bash" > ~/stop_localnet.sh && \
+    echo "pkill -2 localnet" >> ~/stop_localnet.sh && \
+    echo "pkill -2 subtensor" >> ~/stop_localnet.sh && \
+    chmod +x ~/stop_localnet.sh && \
+    echo "source ~/venv/bin/activate" >> ~/.bashrc && \
+    echo "source ~/venv/bin/activate.fish" >> ~/.config/fish/config.fish
