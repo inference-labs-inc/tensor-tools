@@ -79,8 +79,13 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | b
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" && \
     nvm install 20 && \
     npm install --prefix /home/vscode/.snarkjs snarkjs@0.7.4 && \
-    ln -s $(which node) /usr/bin/node && \
-    ln -s $(which npm) /usr/bin/npm
+    mkdir -p /home/vscode/.local/bin && \
+    ln -s $(which node) /home/vscode/.local/bin/node && \
+    ln -s $(which npm) /home/vscode/.local/bin/npm
+USER root
+RUN install -m 755 /home/vscode/.local/bin/node /usr/bin/node && \
+    install -m 755 /home/vscode/.local/bin/npm /usr/bin/npm
+USER vscode
 
 # Install uv then use uv to install torch and bittensor-cli to ~/.venv
 RUN pipx install uv && \
@@ -91,14 +96,17 @@ RUN pipx install uv && \
 ENV PATH="/home/vscode/.local/bin:${PATH}"
 ENV PATH="/home/vscode/.venv/bin:${PATH}"
 
+# Set wallet path so btcli doesn't prompt for it (still does even with config set)
+ENV WPATH="--wallet.path /home/vscode/.bittensor/wallets"
+
 # Set btcli config.yml and create wallets
-RUN btcli config set --subtensor.chain_endpoint ws://127.0.0.1:9944 && \
-    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name owner && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name owner --wallet.hotkey default && \
-    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name miner && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name miner --wallet.hotkey default && \
-    btcli wallet new_coldkey --no-use-password --n-words 15 --wallet.name validator && \
-    btcli wallet new_hotkey  --no-use-password --n-words 15 --wallet.name validator --wallet.hotkey default
+RUN yes | btcli config set --network ws://127.0.0.1:9944    $WPATH && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name owner && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name owner --wallet.hotkey default && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name miner && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name miner --wallet.hotkey default && \
+    btcli wallet new_coldkey --no-use-password --n-words 15 $WPATH --wallet.name validator && \
+    btcli wallet new_hotkey  --no-use-password --n-words 15 $WPATH --wallet.name validator --wallet.hotkey default
 
 # Mint some tokens
 RUN cd subtensor && \
