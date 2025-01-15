@@ -149,14 +149,14 @@ RUN cd subtensor && \
     pkill -2 subtensor ; \
     sleep 1
 
-# Add scripts to start and stop the localnet, and aliases for common btcli commands
-RUN echo "#!/usr/bin/env bash" > ~/start_localnet.sh && \
-    echo "cd ~/subtensor" >> ~/start_localnet.sh && \
-    echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> ~/start_localnet.sh && \
-    chmod +x ~/start_localnet.sh && \
-    echo "#!/usr/bin/env bash" > ~/stop_localnet.sh && \
-    echo "pkill -2 localnet" >> ~/stop_localnet.sh && \
-    echo "pkill -2 subtensor" >> ~/stop_localnet.sh && \
-    chmod +x ~/stop_localnet.sh && \
-    echo "source ~/venv/bin/activate" >> ~/.bashrc && \
-    echo "source ~/venv/bin/activate.fish" >> ~/.config/fish/config.fish
+# Add scripts to start and stop the localnet
+RUN echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet.sh && \
+    echo "cd ~/subtensor" >> ~/.local/bin/start_localnet.sh && \
+    echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> ~/.local/bin/start_localnet.sh && \
+    chmod +x ~/.local/bin/start_localnet.sh && \
+    echo "#!/usr/bin/env bash" > ~/.local/bin/stop_localnet.sh && \
+    echo "pkill -2 localnet" >> ~/.local/bin/stop_localnet.sh && \
+    echo "pkill -2 subtensor" >> ~/.local/bin/stop_localnet.sh && \
+    chmod +x ~/.local/bin/stop_localnet.sh && \
+    echo "source ~/.venv/bin/activate" >> ~/.bashrc && \
+    echo "source ~/.venv/bin/activate.fish" >> ~/.config/fish/config.fish
