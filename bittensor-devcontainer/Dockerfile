@@ -158,5 +158,3 @@ RUN echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet.sh && \
     echo "pkill -2 localnet" >> ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 subtensor" >> ~/.local/bin/stop_localnet.sh && \
     chmod +x ~/.local/bin/stop_localnet.sh && \
-    echo "source ~/.venv/bin/activate" >> ~/.bashrc && \
-    echo "source ~/.venv/bin/activate.fish" >> ~/.config/fish/config.fish
