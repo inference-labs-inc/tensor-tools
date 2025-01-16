@@ -157,4 +157,4 @@ RUN echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet.sh && \
     echo "#!/usr/bin/env bash" > ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 localnet" >> ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 subtensor" >> ~/.local/bin/stop_localnet.sh && \
-    chmod +x ~/.local/bin/stop_localnet.sh && \
+    chmod +x ~/.local/bin/stop_localnet.sh
