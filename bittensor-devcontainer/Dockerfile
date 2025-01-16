@@ -154,6 +154,10 @@ RUN echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet.sh && \
     echo "cd ~/subtensor" >> ~/.local/bin/start_localnet.sh && \
     echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> ~/.local/bin/start_localnet.sh && \
     chmod +x ~/.local/bin/start_localnet.sh && \
+    echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet_foreground.sh && \
+    echo "cd ~/subtensor" >> ~/.local/bin/start_localnet_foreground.sh && \
+    echo "BUILD_BINARY=0 ./scripts/localnet.sh --no-purge" >> ~/.local/bin/start_localnet_foreground.sh && \
+    chmod +x ~/.local/bin/start_localnet_foreground.sh && \
     echo "#!/usr/bin/env bash" > ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 localnet" >> ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 subtensor" >> ~/.local/bin/stop_localnet.sh && \
