@@ -83,8 +83,8 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | b
     ln -s $(which node) /home/vscode/.local/bin/node && \
     ln -s $(which npm) /home/vscode/.local/bin/npm
 USER root
-RUN install -m 755 /home/vscode/.local/bin/node /usr/bin/node && \
-    install -m 755 /home/vscode/.local/bin/npm /usr/bin/npm
+RUN ln -s $(readlink /home/vscode/.local/bin/node) /usr/bin/node && \
+    ln -s $(readlink /home/vscode/.local/bin/npm) /usr/bin/npm
 USER vscode
 
 # Install uv then use uv to install torch and bittensor-cli to ~/.venv
