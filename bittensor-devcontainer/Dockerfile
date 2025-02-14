@@ -111,7 +111,7 @@ RUN yes | btcli config set --network ws://127.0.0.1:9944    $WPATH && \
 # Mint some tokens
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh > /dev/null 2>&1 & \
-    sleep 5 && \
+    sleep 10 && \
     yes | btcli wallet faucet --wallet.name owner & \
     sleep 180 && \
     pkill -2 localnet ; \
@@ -120,7 +120,7 @@ RUN cd subtensor && \
 
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
-    sleep 5 && \
+    sleep 10 && \
     yes | btcli wallet faucet --wallet.name miner & \
     sleep 180 && \
     pkill -2 localnet ; \
@@ -129,7 +129,7 @@ RUN cd subtensor && \
 
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
-    sleep 5 && \
+    sleep 10 && \
     yes | btcli wallet faucet --wallet.name validator & \
     sleep 180 && \
     pkill -2 localnet ; \
@@ -139,7 +139,7 @@ RUN cd subtensor && \
 # Register the subnet
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
-    sleep 5 && \
+    sleep 10 && \
     btcli subnet create   --wallet.name owner     --no-prompt                                      && \
     btcli subnet register --wallet.name miner     --no-prompt --netuid 1   --wallet.hotkey default && \
     btcli subnet register --wallet.name validator --no-prompt --netuid 1   --wallet.hotkey default && \
