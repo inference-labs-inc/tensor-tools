@@ -136,15 +136,12 @@ RUN cd subtensor && \
     pkill -2 subtensor ; \
     sleep 1
 
-# Register the subnet
+# Register on the pre-existing subnet 1 for testing
 RUN cd subtensor && \
     BUILD_BINARY=0 ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
     sleep 10 && \
-    btcli subnet create   --wallet.name owner     --no-prompt                                      && \
     btcli subnet register --wallet.name miner     --no-prompt --netuid 1   --wallet.hotkey default && \
     btcli subnet register --wallet.name validator --no-prompt --netuid 1   --wallet.hotkey default && \
-    btcli root nominate   --wallet.name validator --no-prompt              --wallet.hotkey default && \
-    btcli stake add       --wallet.name validator --no-prompt --amount 100 --wallet.hotkey default && \
     pkill -2 localnet ; \
     pkill -2 subtensor ; \
     sleep 1
