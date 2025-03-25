@@ -1,5 +1,5 @@
 # Based off of subtensor builder from https://github.com/opentensor/subtensor/blob/main/Dockerfile
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:latest AS builder
 SHELL ["/bin/bash", "-c"]
 
 # Set noninteractive mode for apt-get
@@ -13,8 +13,8 @@ RUN apt-get update && \
 
 RUN set -o pipefail && curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup update stable
-RUN rustup target add wasm32-unknown-unknown --toolchain stable
+RUN rustup toolchain install
+RUN rustup target add wasm32-unknown-unknown
 
 # Copy entire repository
 RUN git clone https://github.com/opentensor/subtensor.git /build
@@ -65,7 +65,9 @@ RUN git clone https://github.com/opentensor/subtensor.git
     # cd subtensor && \
     # cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
 # Copy subtensor binary
-COPY --from=builder /build/target/release/node-subtensor /home/vscode/subtensor/target/release/node-subtensor
+COPY --chown=vscode:vscode --from=builder /build/target/release/node-subtensor /home/vscode/subtensor/target/release/node-subtensor
+# Set env var for https://github.com/opentensor/subtensor/blob/main/scripts/localnet.sh
+ENV RUN_IN_DOCKER=1
 
 # # Install Jolt
 # ENV RUST_TOOLCHAIN=nightly-2024-09-30
