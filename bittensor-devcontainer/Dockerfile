@@ -54,6 +54,7 @@ RUN apt update && \
     llvm \
     libudev-dev \
     protobuf-compiler \
+    ffmpeg \
     byobu \
     fish \
     wget \
@@ -109,6 +110,9 @@ RUN pipx install uv && \
     /home/vscode/.local/bin/uv cache clean
 ENV PATH="/home/vscode/.local/bin:${PATH}"
 ENV PATH="/home/vscode/.venv/bin:${PATH}"
+
+# Make dir for ezkl that is owned by vscode, otherwise it will be owned by root when created as parent for srs by devcontainer mounts
+RUN mkdir -p /home/vscode/.ezkl
 
 # Set wallet path so btcli doesn't prompt for it (still does even with config set)
 ENV WPATH="--wallet.path /home/vscode/.bittensor/wallets"
