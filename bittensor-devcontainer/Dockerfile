@@ -25,10 +25,13 @@ WORKDIR /build
 # RUN cargo build --workspace --profile release --features pow-faucet --manifest-path "Cargo.toml" --locked
 # Build fast-blocks node
 RUN ./scripts/localnet.sh --build-only
+# Build non-fast-blocks
+RUN ./scripts/localnet.sh False --build-only
 
 # Verify the binary was produced
 # RUN test -e /build/target/release/node-subtensor
 RUN test -e /build/target/fast-blocks/release/node-subtensor
+RUN test -e /build/target/non-fast-blocks/release/node-subtensor
 
 # Final devcontainer
 FROM mcr.microsoft.com/devcontainers/base:noble
@@ -72,6 +75,7 @@ RUN git clone https://github.com/opentensor/subtensor.git
 # Copy subtensor binary
 # COPY --chown=vscode:vscode --from=builder /build/target/release/node-subtensor /home/vscode/subtensor/target/release/node-subtensor
 COPY --chown=vscode:vscode --from=builder /build/target/fast-blocks/release/node-subtensor /home/vscode/subtensor/target/fast-blocks/release/node-subtensor
+COPY --chown=vscode:vscode --from=builder /build/target/non-fast-blocks/release/node-subtensor /home/vscode/subtensor/target/non-fast-blocks/release/node-subtensor
 # Set env var for https://github.com/opentensor/subtensor/blob/main/scripts/localnet.sh
 ENV RUN_IN_DOCKER=1
 # Do not build (just run)
@@ -120,7 +124,7 @@ RUN yes | btcli config set --network ws://127.0.0.1:9944    $WPATH && \
 
 # Mint some tokens
 RUN cd subtensor && \
-    ./scripts/localnet.sh > /dev/null 2>&1 & \
+    ./scripts/localnet.sh False > /dev/null 2>&1 & \
     sleep 10 && \
     yes | btcli wallet faucet --wallet.name owner & \
     sleep 180 && \
@@ -129,7 +133,7 @@ RUN cd subtensor && \
     sleep 1
 
 RUN cd subtensor && \
-    ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
+    ./scripts/localnet.sh False --no-purge > /dev/null 2>&1 & \
     sleep 10 && \
     yes | btcli wallet faucet --wallet.name miner & \
     sleep 180 && \
@@ -138,7 +142,7 @@ RUN cd subtensor && \
     sleep 1
 
 RUN cd subtensor && \
-    ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
+    ./scripts/localnet.sh False --no-purge > /dev/null 2>&1 & \
     sleep 10 && \
     yes | btcli wallet faucet --wallet.name validator & \
     sleep 180 && \
@@ -148,7 +152,7 @@ RUN cd subtensor && \
 
 # Register on the pre-existing subnet 1 for testing
 RUN cd subtensor && \
-    ./scripts/localnet.sh --no-purge > /dev/null 2>&1 & \
+    ./scripts/localnet.sh False --no-purge > /dev/null 2>&1 & \
     sleep 10 && \
     btcli subnet register --wallet.name miner     --no-prompt --netuid 1   --wallet.hotkey default && \
     btcli subnet register --wallet.name validator --no-prompt --netuid 1   --wallet.hotkey default && \
@@ -159,11 +163,11 @@ RUN cd subtensor && \
 # Add scripts to start and stop the localnet
 RUN echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet.sh && \
     echo "cd ~/subtensor" >> ~/.local/bin/start_localnet.sh && \
-    echo "./scripts/localnet.sh --no-purge > /dev/null 2>&1 &" >> ~/.local/bin/start_localnet.sh && \
+    echo "./scripts/localnet.sh False --no-purge > /dev/null 2>&1 &" >> ~/.local/bin/start_localnet.sh && \
     chmod +x ~/.local/bin/start_localnet.sh && \
     echo "#!/usr/bin/env bash" > ~/.local/bin/start_localnet_foreground.sh && \
     echo "cd ~/subtensor" >> ~/.local/bin/start_localnet_foreground.sh && \
-    echo "./scripts/localnet.sh --no-purge" >> ~/.local/bin/start_localnet_foreground.sh && \
+    echo "./scripts/localnet.sh False --no-purge" >> ~/.local/bin/start_localnet_foreground.sh && \
     chmod +x ~/.local/bin/start_localnet_foreground.sh && \
     echo "#!/usr/bin/env bash" > ~/.local/bin/stop_localnet.sh && \
     echo "pkill -2 localnet" >> ~/.local/bin/stop_localnet.sh && \
